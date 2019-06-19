@@ -8,10 +8,13 @@
 
 import UIKit
 import RealmSwift
+import ChameleonFramework
 
-class TodoListTableViewController: UITableViewController {
+class TodoListTableViewController: SwipeTableViewController {
     
     let realm = try! Realm()
+    
+    @IBOutlet weak var searchBar: UISearchBar!
     
     var items: Results<Item>?
     var category: Category? {
@@ -19,26 +22,61 @@ class TodoListTableViewController: UITableViewController {
             loadItems()
         }
     }
+    
 
     override func viewDidLoad() {
         super.viewDidLoad()
         // Do any additional setup after loading the view.
-        loadItems()
+        tableView.separatorStyle = .none
+    }
+    
+    override func viewWillAppear(_ animated: Bool) {
+        title = category?.name
+        guard let colorString = category?.color else {
+            fatalError()
+        }
+        updateNavBarColor(with: colorString)
+    }
+    
+    override func viewWillDisappear(_ animated: Bool) {
+        updateNavBarColor(with: "1D9BF6")
+    }
+    
+    
+    // MARK: - Nav Bar Setup Methods
+    func updateNavBarColor(with colorString: String) {
+        guard let navBar = navigationController?.navigationBar else {
+            fatalError("Navigation controller does not exist.")
+        }
+        guard let navBarColor = UIColor(hexString: colorString) else {
+            fatalError()
+        }
+        
+        navBar.barTintColor = navBarColor
+        navBar.tintColor = ContrastColorOf(navBarColor, returnFlat: true)
+        navBar.largeTitleTextAttributes = [NSAttributedString.Key.foregroundColor: ContrastColorOf(navBarColor, returnFlat: true)]
+        
+        searchBar.barTintColor = navBarColor
     }
     
     
     // MARK: - Tableview Datasource Methods
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return items?.count ?? 1
+        return items?.count ?? 0
     }
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "ItemCell", for: indexPath)
+        let cell = super.tableView(tableView, cellForRowAt: indexPath)
+        
         if let item = items?[indexPath.row] {
             cell.textLabel?.text = item.title
             cell.accessoryType = item.isDone ? .checkmark : .none
-        } else {
-            cell.textLabel?.text = "No Items added yet..."
+            let percentage:CGFloat = 0.3 * CGFloat(indexPath.row) / CGFloat(items!.count)
+            print("\(indexPath.row) percentage: \(percentage)")
+            if let color = UIColor(hexString: category!.color)?.darken(byPercentage: percentage) {
+                cell.backgroundColor = color
+                cell.textLabel?.textColor = ContrastColorOf(color, returnFlat: true)
+            }
         }
         
         return cell
@@ -67,7 +105,7 @@ class TodoListTableViewController: UITableViewController {
         var textField = UITextField()
         
         let alert = UIAlertController(title: "Add New Item", message: "", preferredStyle: .alert)
-        let action = UIAlertAction(title: "Add Item", style: .default) { (action) in
+        let action = UIAlertAction(title: "Add", style: .default) { (action) in
             if let currentCategory = self.category {
                 do {
                     try self.realm.write {
@@ -93,7 +131,19 @@ class TodoListTableViewController: UITableViewController {
     
     // MARK: - Model Manupulation Methods
     func loadItems() {
-        items = category?.items.sorted(byKeyPath: "title", ascending: true)
+        items = category?.items.sorted(byKeyPath: "createdAt", ascending: true)
+    }
+    
+    override func deleteEntity(at indexPath: IndexPath) {
+        if let itemToDelete = self.items?[indexPath.row] {
+            do {
+                try self.realm.write {
+                    self.realm.delete(itemToDelete)
+                }
+            } catch {
+                print("Error deleting item \(error)")
+            }
+        }
     }
 }
 

@@ -14,14 +14,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     var window: UIWindow?
 
-
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         // Override point for customization after application launch.
         
         do {
             let realm = try Realm()
+            print(realm.configuration.fileURL!)
         } catch {
-           print("Error initializing new realm, \(error)")
+            print("Error initializing new realm, \(error)")
         }
         
         return true
